@@ -1,0 +1,13 @@
+---
+description: 
+globs: memos/prompts/*.*
+alwaysApply: false
+---
+Rule Name: prompt-logs
+Description: `memos/prompts`内のファイルがアノテーション指定されている時のルール
+
+プロンプトとレスポンスの内容の記録のためにアノテーション指定された`memos/prompts`のファイルに以下を行う
+
+- 最下部に# Responceセクションを作成（作成されてないのであれば）
+
+- 最下部の# Responceセクションにプロンプトに対しての返信をすべて転記

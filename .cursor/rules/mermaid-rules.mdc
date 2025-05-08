@@ -1,0 +1,18 @@
+---
+description: 
+globs: *.md
+alwaysApply: false
+---
+Rule Name: mermaid-rules
+Description: Mermaid記載時のルール
+
+## わからないことがある場合
+`https://mermaid.js.org/`で正しい文法を調査する。
+
+**クラス図で日本語で利用する際は以下のように記述する。**
+このように記述しないとエラーが発生するため。（クラス図以外でも発生する可能性有）
+`class EnglishName["日本語名"]`
+
+**enumの定義**
+
+`<<Enumeration>>`を利用する。
