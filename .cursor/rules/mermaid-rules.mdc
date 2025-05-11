@@ -14,5 +14,15 @@ Description: Mermaid記載時のルール
 `class EnglishName["日本語名"]`
 
 **enumの定義**
-
 `<<Enumeration>>`を利用する。
+
+**classdef / note**
+最下部にまとめて定義する。
+
+**コメント**
+コメントを記述する場合はコードの上で記述する。
+(同一行に記述するとエラーとなる)
+```mermaid
+%% example
+A --> B 
+```
