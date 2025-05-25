@@ -16,7 +16,11 @@ Description: Mermaid記載時のルール
 **enumの定義**
 `<<Enumeration>>`を利用する。
 
-**classdef / note**
+**note**
+関連するnamespaceの下に記述する。
+namespaceスコープ外に記述する
+
+**classdef**
 最下部にまとめて定義する。
 
 **コメント**
