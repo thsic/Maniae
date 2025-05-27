@@ -1,0 +1,328 @@
+classDiagram
+direction LR
+%% コアドメインの関心は「特定のODペアの到着予定時刻と過去の到着実績を知れること」
+	namespace StopAggregate {
+		class Stop["Stop: 停留所"] {
+      <<RootEntity>>
+			StopId: 停留所ID
+			StopName: 停留所名
+			Timetable: 時刻表
+			FeedInfoAggregate.FeedVersion: 提供データバージョン
+		}
+
+		class TimeTable["TimeTable: 時刻表"] {
+      <<ValueObject>>
+			RouteAggregate.RouteId: 路線ID
+			Shared.ArrivalTime: 到着時刻
+			Shared.DepartureTime: 出発時刻
+		}
+
+		class StopId["StopId: 停留所ID"] {
+      <<ValueObject>>
+			Value: String
+		}
+
+		class StopName["StopName: 停留所名"] {
+      <<ValueObject>>
+			Value: String
+		}
+	}
+
+	note for Stop"**【StopAggregate のビジネスルール】**
+  **Stop: 停留所**
+  ・特定の FeedVersion に関連付けられる。
+  ・FeedVersion 変更時を除き、StopName, Timetable は変更不可。
+  **StopId: 停留所ID**
+  ・システム内で一意。1文字以上20文字以内。
+  **StopName: 停留所名**
+  ・1文字以上40文字以内。
+  **TimeTable: 時刻表**
+  ・到着と出発は同時刻を許容。
+  ・始発/終着は片方の時刻のみ許容。"
+
+	namespace RouteAggregate {
+		class Route["Route: 路線"] {
+      <<RootEntity>>
+			RouteId: 路線ID
+			RouteName: 路線名
+			OrderedStops: 停留所順序
+			AgencyAggregate.AgencyId: 事業者ID
+			FeedInfoAggregate.FeedVersion: 提供データバージョン
+		}
+
+		class RouteName["RouteName: 路線名"] {
+      <<ValueObject>>
+			Value: String
+		}
+
+		class RouteId["RouteId: 路線ID"] {
+      <<ValueObject>>
+			Value: String
+		}
+	}
+
+	note for Route"**【RouteAggregate のビジネスルール】**
+  **Route: 路線**
+  ・特定の FeedVersion に関連付けられる。
+  ・FeedVersion 変更時を除き、RouteName, OrderedStops, AgencyId は変更不可。
+	・OrderedStops は StopId のリスト。
+  ・OrderedStops は2つ以上の StopId を含み、StopId は重複不可。
+  **RouteId: 路線ID**
+  ・システム内で一意。1文字以上20文字以内。
+  **RouteName: 路線名**
+  ・1文字以上40文字以内。"
+
+%% ---サブドメイン「Trip: 運行」ここから---
+	namespace TripAggregate {
+		class Trip["Trip: 運行情報"] {
+      <<RootEntity>>
+			%%運行全体を識別し、管理する役割に集中する
+			TripId: 運行情報ID
+			RouteAggregate.RouteId: 路線ID
+			TripDirection: 運行方向
+			TripStatus: 運行ステータス
+			TripDate: 運行日
+			FeedInfoAggregate.FeedVersion: 提供データバージョン
+		}
+
+		class TripId["TripId: 運行情報ID"] {
+      <<ValueObject>>
+			Value: String
+		}
+
+		class TripDirection["TripDirection: 運行方向"]{
+			<<Enumeration>>
+			UP: 上り
+			DOWN: 下り
+		}
+
+		class TripDate["TripDate: 運行日"] {
+      <<ValueObject>>
+			Value: Date
+		}
+
+		class TripStatus["TripStatus: 運行ステータス"] {
+			<<Enumeration>>
+			PRE_SERVICE: サービス開始前
+			PLANNED: 計画済み
+			DEPARTED: 出発済み
+			COMPLETED: 運行完了済み
+			CANCELED: キャンセル済み
+		}
+	}
+
+	note for Trip"**【TripAggregate のビジネスルール】**
+  **Trip: 運行情報**
+  ・特定の FeedVersion に関連付けられる。
+  ・TripStatus が PRE_SERVICE の場合、FeedVersion 変更可。
+  ・上記 FeedVersion 変更時を除き、RouteId, TripDirection, TripDate は変更不可。
+  ・RouteId に関連付けられる。
+  **TripId: 運行情報ID**
+  ・システム内で一意。1文字以上20文字以内。
+  **TripStatus: 運行ステータス**
+  ・初期状態は PRE_SERVICE。
+  ・状態遷移:
+    PRE_SERVICE -> PLANNED (FeedVersion 有効期間内化)
+    PLANNED -> DEPARTED (運行開始/出発時)
+    PLANNED -> CANCELED (運行キャンセル時)
+    DEPARTED -> COMPLETED (運行完了時)
+    DEPARTED -> CANCELED (運行途中でキャンセル時)
+    COMPLETED, CANCELED からは遷移不可。
+  **TripDate: 運行日**
+  ・運行が行われる単一の日付。"
+
+	namespace StopTimeAggregate {
+		class StopTime["StopTime: 通過時刻情報"] {
+      <<RootEntity>>
+			%%特定の運行における、ある一つのバス停への到着情報
+			StopTimeId: 通過時刻情報ID
+			TripAggregate.TripId: 運行情報ID
+			ScheduledTime: 予定時刻
+			ActualTime: 実績時刻
+			StopSequence: 通過順位
+			StopAggregate.StopId: 停留所ID
+			StopTimeStatus: 通過ステータス
+			FeedInfoAggregate.FeedVersion: 提供データバージョン
+		}
+
+		class ScheduledTime["ScheduledTime: 予定時刻"] {
+      <<ValueObject>>
+			Shared.ArrivalTime: 到着時刻
+			Shared.DepartureTime: 出発時刻
+		}
+
+		class ActualTime["ActualTime: 実績時刻"] {
+      <<ValueObject>>
+			Shared.ArrivalTime: 到着時刻
+			Shared.DepartureTime: 出発時刻
+		}
+
+		class StopSequence["StopSequence: 通過順位"] {
+      <<ValueObject>>
+			Value: Number
+		}
+
+		class StopTimeStatus["StopTimeStatus: 通過ステータス"] {
+			<<Enumeration>>
+			PRE_SERVICE: サービス開始前
+			PLANNED: 計画済み
+			ARRIVED: 到着済み
+			DEPARTED: 出発済み
+			SKIPPED: スキップ済み
+			CANCELED: キャンセル済み
+		}
+
+		class StopTimeId["StopTimeId: 通過時刻情報ID"] { 
+		    <<ValueObject>>
+		    Value: String
+		}
+	}
+	note for StopTime"**【StopTimeAggregate のビジネスルール】**
+  **StopTime: 通過時刻情報**
+  ・特定の Trip に関連付けられる。
+  ・FeedVersion を持ち、通常 Trip の FeedVersion と同期。
+  ・特定の Stop に関連付けられる (StopId を持つ)。
+  ・ActualTime は Status が ARRIVED or DEPARTED の場合に記録。
+  ・Status は FeedVersion の有効期間や実績に応じて遷移。
+  **StopTimeId: 通過時刻情報ID**
+  ・システム内で一意。1文字以上20文字以内。
+  **ScheduledTime/ActualTime: 予定/実績時刻**
+  ・ArrivalTime と DepartureTime を含む。
+  ・DepartureTime は ArrivalTime と同時刻かそれ以降。
+  ・始発は DepartureTime のみ、終着は ArrivalTime のみ可。
+    それ以外は両方必須。
+  **StopSequence: 通過順位**
+  ・Trip内でユニークな通過順を示す値。
+  **StopTimeStatus: 通過ステータス**
+  ・初期状態: FeedVersion が有効期間前なら PRE_SERVICE、
+    有効期間内なら PLANNED。
+  ・状態遷移:
+    PRE_SERVICE -> PLANNED (FeedVersion 有効期間内化)
+    PLANNED -> ARRIVED (到着時)
+    PLANNED -> SKIPPED (スキップ時)
+    PLANNED -> CANCELED (キャンセル時)
+    ARRIVED -> DEPARTED (出発時)
+    DEPARTED, SKIPPED, CANCELED からは遷移不可。"
+
+%% ---サブドメイン「Trip: 運行」ここまで---
+
+	namespace FeedInfoAggregate{
+		class FeedInfo["FeedInfo: 提供情報"] {
+      <<RootEntity>>
+			FeedVersion: 提供データバージョン
+			FeedPublisherName: 提供組織名
+			FeedStartDate: 有効期間開始日
+			FeedEndDate: 有効期間終了日
+		}
+
+		class FeedVersion["FeedVersion: 提供データバージョン"] {
+      <<ValueObject>>
+			Value: String
+		}
+
+		class FeedPublisherName["FeedPublisherName: 提供組織名"] {
+      <<ValueObject>>
+			Value: String
+		}
+
+		class FeedStartDate["FeedStartDate: 有効期間開始日"] {
+      <<ValueObject>>
+			Value: String
+		}
+
+		class FeedEndDate["FeedEndDate: 有効期間終了日"] {
+      <<ValueObject>>
+			Value: String
+		}
+	}
+
+	note for FeedInfo"**【FeedInfoAggregate のビジネスルール】**
+  **FeedInfo: 提供情報**
+  ・各 FeedVersion につき1レコード存在する。
+  ・FeedVersion はシステム全体で一意。
+  ・FeedEndDate は FeedStartDate と同時刻かそれ以降。
+  ・一度作成された FeedInfo の全属性は変更不可(不変)。
+  **FeedVersion: 提供データバージョン**
+  ・システム内で一意。1文字以上40文字以内。
+  **FeedPublisherName: 提供組織名**
+  ・1文字以上40文字以内。
+  **FeedStartDate / FeedEndDate: 有効期間開始日/終了日**
+  ・有効な日付形式であること。"
+
+  namespace AgencyAggregate{
+    class Agency["Agency: 事業者"] {
+      <<RootEntity>>
+      AgencyId: 事業者ID
+      AgencyName: 事業者名称
+    }
+
+    class AgencyId["AgencyId: 事業者ID"] {
+      <<ValueObject>>
+      Value: String
+    }
+
+    class AgencyName["AgencyName: 事業者名称"] {
+      <<ValueObject>>
+      Value: String
+    }
+  }
+
+  note for Agency"**【AgencyAggregate のビジネスルール】**
+  **Agency: 事業者**
+  ・一意な AgencyId と AgencyName を持つ。
+  ・AgencyName は変更可能 (AgencyId は不変)。
+  **AgencyId: 事業者ID**
+  ・システム内で一意。1文字以上20文字以内。不変。
+  **AgencyName: 事業者名称**
+  ・1文字以上40文字以内。変更可能。"
+
+  namespace Shared {
+    class ArrivalTime["ArrivalTime: 到着時刻"] {
+      <<ValueObject>>
+      Value: Date
+    }
+
+    class DepartureTime["DepartureTime: 出発時刻"] {
+      <<ValueObject>>
+      Value: Date
+    }
+  }
+
+%% ---関係性の表現---
+%% StopAggregate
+	Stop "1" -- "1" StopId
+	Stop "1" -- "1" StopName
+	Stop "1" -- "*" TimeTable
+
+%% RouteAggregate
+	Route "1" -- "1" RouteId
+	Route "1" -- "1" RouteName
+
+%% TripAggregate
+	Trip "1" -- "1" TripId
+	Trip "1" -- "1" TripDirection
+	Trip "1" -- "1" TripDate
+  Trip "1" -- "1" TripStatus
+
+%% FeedInfoAggregate
+	FeedInfo "1" -- "1" FeedVersion
+	FeedInfo "1" -- "1" FeedPublisherName
+	FeedInfo "1" -- "1" FeedStartDate
+	FeedInfo "1" -- "1" FeedEndDate
+
+%% StopTimeAggregate
+	StopTime "1" -- "1" StopTimeId
+	StopTime "1" -- "1" ScheduledTime
+	StopTime "1" -- "1" ActualTime
+	StopTime "1" -- "1" StopSequence
+	StopTime "1" -- "1" StopTimeStatus
+
+%% ---集約間の関連---
+  StopTime "*" ..> "1" Stop
+  Trip "*" ..> "1" Route
+  Route "1" ..> "*" Stop
+  Route "1" ..> "1" Agency
+  StopTime "*" ..> "1" Trip
+
+
+</rewritten_file> 
